@@ -107,7 +107,7 @@ export default function App() {
                 flexShrink: 0,
               }}
             />
-            lowering engine
+            custom engine
           </span>
           <span
             style={{

@@ -4,7 +4,11 @@ import { API_BASE } from "../config/constants";
 // ── Constants ─────────────────────────────────────────────────
 
 const SOLVERS = [
-  { id: "boolector", label: "Boolector", desc: "Fast BMC solver (recommended)" },
+  {
+    id: "boolector",
+    label: "Boolector",
+    desc: "Fast BMC solver (recommended)",
+  },
   { id: "yices", label: "Yices 2", desc: "SMT, good for k-induction" },
   { id: "z3", label: "Z3", desc: "General-purpose SMT solver" },
 ];
@@ -56,7 +60,8 @@ function jobPhaseLabel(status) {
 
 function logLineColor(line) {
   const l = line.toLowerCase();
-  if (l.includes("error") || l.includes("fail") || l.includes("[error]")) return "#f85149";
+  if (l.includes("error") || l.includes("fail") || l.includes("[error]"))
+    return "#f85149";
   if (l.includes("warning") || l.includes("warn")) return "#d29922";
   if (l.startsWith("info") || l.includes("[info]")) return "#3fb950";
   return "#8b949e";
@@ -75,7 +80,9 @@ function isBinaryValue(value) {
 }
 
 function isBusValue(value) {
-  return typeof value === "string" && /^[01xz-]+$/i.test(value) && value.length > 1;
+  return (
+    typeof value === "string" && /^[01xz-]+$/i.test(value) && value.length > 1
+  );
 }
 
 function parseWaveNumericValue(value) {
@@ -106,7 +113,7 @@ function resolveFailureMarkerTime(signalDetails, failureStep) {
   if (!Number.isFinite(failureStep) || failureStep < 0) return null;
   const smtStep = (signalDetails || []).find(
     (signal) =>
-      signal?.name === "smt_step" || signal?.full_name?.endsWith(".smt_step")
+      signal?.name === "smt_step" || signal?.full_name?.endsWith(".smt_step"),
   );
   if (!smtStep) return null;
 
@@ -147,7 +154,7 @@ function FileDropZone({ label, accept, files, onAdd, onRemove }) {
     e.preventDefault();
     setDragging(false);
     const dropped = Array.from(e.dataTransfer.files).filter((f) =>
-      accept.some((ext) => f.name.endsWith(ext))
+      accept.some((ext) => f.name.endsWith(ext)),
     );
     if (dropped.length) onAdd(dropped);
   }
@@ -162,7 +169,10 @@ function FileDropZone({ label, accept, files, onAdd, onRemove }) {
     <div>
       <SectionLabel>{label}</SectionLabel>
       <div
-        onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+        onDragOver={(e) => {
+          e.preventDefault();
+          setDragging(true);
+        }}
         onDragLeave={() => setDragging(false)}
         onDrop={handleDrop}
         onClick={() => inputRef.current?.click()}
@@ -185,9 +195,23 @@ function FileDropZone({ label, accept, files, onAdd, onRemove }) {
           onChange={handleChange}
         />
         {files.length === 0 ? (
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: 4,
+            }}
+          >
             <span style={{ fontSize: 16, opacity: 0.35 }}>↑</span>
-            <span style={{ color: "#484f58", fontSize: 10, textAlign: "center", fontFamily: "'JetBrains Mono', monospace" }}>
+            <span
+              style={{
+                color: "#484f58",
+                fontSize: 10,
+                textAlign: "center",
+                fontFamily: "'JetBrains Mono', monospace",
+              }}
+            >
               {accept.join("  ")}
             </span>
           </div>
@@ -206,18 +230,47 @@ function FileDropZone({ label, accept, files, onAdd, onRemove }) {
                   borderRadius: 4,
                 }}
               >
-                <span style={{ fontSize: 10, color: "#58a6ff", fontFamily: "'JetBrains Mono', monospace", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                <span
+                  style={{
+                    fontSize: 10,
+                    color: "#58a6ff",
+                    fontFamily: "'JetBrains Mono', monospace",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
                   📄 {f.name}
                 </span>
                 <button
-                  onClick={(e) => { e.stopPropagation(); onRemove(i); }}
-                  style={{ background: "none", border: "none", color: "#484f58", cursor: "pointer", fontSize: 14, padding: "0 2px", lineHeight: 1, flexShrink: 0 }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onRemove(i);
+                  }}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    color: "#484f58",
+                    cursor: "pointer",
+                    fontSize: 14,
+                    padding: "0 2px",
+                    lineHeight: 1,
+                    flexShrink: 0,
+                  }}
                 >
                   ×
                 </button>
               </div>
             ))}
-            <div style={{ marginTop: 2, fontSize: 9, color: "#484f58", fontFamily: "'JetBrains Mono', monospace", textAlign: "right" }}>
+            <div
+              style={{
+                marginTop: 2,
+                fontSize: 9,
+                color: "#484f58",
+                fontFamily: "'JetBrains Mono', monospace",
+                textAlign: "right",
+              }}
+            >
               + click to add more
             </div>
           </div>
@@ -243,9 +296,15 @@ const inputBase = {
 
 function SelectInput({ value, onChange, options }) {
   return (
-    <select value={value} onChange={(e) => onChange(e.target.value)} style={inputBase}>
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      style={inputBase}
+    >
       {options.map((o) => (
-        <option key={o.id} value={o.id}>{o.label}</option>
+        <option key={o.id} value={o.id}>
+          {o.label}
+        </option>
       ))}
     </select>
   );
@@ -281,7 +340,10 @@ function SummaryBar({ result, depth }) {
     {
       label: "Covers",
       value: `${coveredCount} / ${covers.length} covered`,
-      color: coveredCount === covers.length && covers.length > 0 ? "#3fb950" : "#d29922",
+      color:
+        coveredCount === covers.length && covers.length > 0
+          ? "#3fb950"
+          : "#d29922",
     },
     { label: "Unreachable", value: unreachableCount, color: "#7d8590" },
     {
@@ -308,7 +370,9 @@ function SummaryBar({ result, depth }) {
       {items.map((item) => (
         <span key={item.label} style={{ color: "#7d8590" }}>
           {item.label}:{" "}
-          <span style={{ color: item.color, fontWeight: 600 }}>{item.value}</span>
+          <span style={{ color: item.color, fontWeight: 600 }}>
+            {item.value}
+          </span>
         </span>
       ))}
     </div>
@@ -390,12 +454,14 @@ function PropertyTable({ result, solver, depth, filter, onOpenTrace }) {
               a.type === "ASSERT"
                 ? "Assert"
                 : a.type === "COVER"
-                ? "Cover"
-                : a.type === "ASSUME"
-                ? "Assume"
-                : a.type || "—";
+                  ? "Cover"
+                  : a.type === "ASSUME"
+                    ? "Assume"
+                    : a.type || "—";
             const bound =
-              a.status === "FAIL" && a.step > 0 ? `N (${a.step})` : depth || "—";
+              a.status === "FAIL" && a.step > 0
+                ? `N (${a.step})`
+                : depth || "—";
             const hasTrace = assertionHasTrace(a);
             const rowBg = i % 2 === 0 ? "#0d1117" : "#010409";
 
@@ -489,7 +555,7 @@ function WaveformModal({ state, onClose }) {
   const signalDetails = waveform?.signal_details || [];
   const markerTime = resolveFailureMarkerTime(
     signalDetails,
-    Number.isFinite(state.assertion?.step) ? state.assertion.step : -1
+    Number.isFinite(state.assertion?.step) ? state.assertion.step : -1,
   );
 
   useEffect(() => {
@@ -580,9 +646,10 @@ function WaveformModal({ state, onClose }) {
               <span>trace: {shortPath(state.data?.vcd_path)}</span>
               <span>timescale: {waveform?.timescale || "—"}</span>
               <span>signals: {waveform?.signal_count || 0}</span>
-              {Number.isFinite(state.assertion?.step) && state.assertion.step > 0 && (
-                <span>failed step: {state.assertion.step}</span>
-              )}
+              {Number.isFinite(state.assertion?.step) &&
+                state.assertion.step > 0 && (
+                  <span>failed step: {state.assertion.step}</span>
+                )}
             </div>
           </div>
 
@@ -635,10 +702,7 @@ function WaveformModal({ state, onClose }) {
               {state.error}
             </div>
           ) : (
-            <WaveformViewer
-              waveform={waveform}
-              markerTime={markerTime}
-            />
+            <WaveformViewer waveform={waveform} markerTime={markerTime} />
           )}
         </div>
       </div>
@@ -729,7 +793,11 @@ function WaveformAxis({ timepoints, stepWidth, axisHeight, markerTime }) {
   const markerX = markerIndex >= 0 ? markerIndex * stepWidth : null;
 
   return (
-    <svg width={width} height={axisHeight} style={{ display: "block", background: "#0d1117" }}>
+    <svg
+      width={width}
+      height={axisHeight}
+      style={{ display: "block", background: "#0d1117" }}
+    >
       {timepoints.map((time, index) => {
         const x = index * stepWidth;
         return (
@@ -749,13 +817,26 @@ function WaveformAxis({ timepoints, stepWidth, axisHeight, markerTime }) {
       })}
       <line x1={width} x2={width} y1={0} y2={axisHeight} stroke="#21262d" />
       {markerX != null && (
-        <line x1={markerX} x2={markerX} y1={0} y2={axisHeight} stroke="#f85149" strokeDasharray="4 4" />
+        <line
+          x1={markerX}
+          x2={markerX}
+          y1={0}
+          y2={axisHeight}
+          stroke="#f85149"
+          strokeDasharray="4 4"
+        />
       )}
     </svg>
   );
 }
 
-function WaveformRow({ signal, timepoints, stepWidth, labelWidth, markerTime }) {
+function WaveformRow({
+  signal,
+  timepoints,
+  stepWidth,
+  labelWidth,
+  markerTime,
+}) {
   const samples = buildWaveSamples(signal, timepoints);
   const width = Math.max(timepoints.length * stepWidth, stepWidth);
   const rowHeight = 34;
@@ -800,7 +881,11 @@ function WaveformRow({ signal, timepoints, stepWidth, labelWidth, markerTime }) 
         </div>
       </div>
 
-      <svg width={width} height={rowHeight} style={{ display: "block", background: "#010409" }}>
+      <svg
+        width={width}
+        height={rowHeight}
+        style={{ display: "block", background: "#010409" }}
+      >
         {timepoints.map((time, index) => {
           const x = index * stepWidth;
           return (
@@ -816,13 +901,28 @@ function WaveformRow({ signal, timepoints, stepWidth, labelWidth, markerTime }) 
         })}
         <line x1={width} x2={width} y1={0} y2={rowHeight} stroke="#161b22" />
         {markerX != null && (
-          <line x1={markerX} x2={markerX} y1={0} y2={rowHeight} stroke="#f85149" strokeDasharray="4 4" />
+          <line
+            x1={markerX}
+            x2={markerX}
+            y1={0}
+            y2={rowHeight}
+            stroke="#f85149"
+            strokeDasharray="4 4"
+          />
         )}
 
         {isSingleBit ? (
-          <DigitalWave samples={samples} stepWidth={stepWidth} rowHeight={rowHeight} />
+          <DigitalWave
+            samples={samples}
+            stepWidth={stepWidth}
+            rowHeight={rowHeight}
+          />
         ) : (
-          <BusWave samples={samples} stepWidth={stepWidth} rowHeight={rowHeight} />
+          <BusWave
+            samples={samples}
+            stepWidth={stepWidth}
+            rowHeight={rowHeight}
+          />
         )}
       </svg>
     </div>
@@ -848,7 +948,8 @@ function DigitalWave({ samples, stepWidth, rowHeight }) {
         const x2 = x1 + stepWidth;
         const normalized = (value || "x").toLowerCase();
         const y = sampleY(normalized);
-        const previous = index > 0 ? (samples[index - 1] || "x").toLowerCase() : normalized;
+        const previous =
+          index > 0 ? (samples[index - 1] || "x").toLowerCase() : normalized;
         const previousY = sampleY(previous);
         const stroke =
           normalized === "1" || normalized === "0" ? "#3fb950" : "#d29922";
@@ -856,10 +957,26 @@ function DigitalWave({ samples, stepWidth, rowHeight }) {
         return (
           <g key={`${index}-${normalized}`}>
             {index > 0 && previous !== normalized && (
-              <line x1={x1} x2={x1} y1={previousY} y2={y} stroke={stroke} strokeWidth="1.5" />
+              <line
+                x1={x1}
+                x2={x1}
+                y1={previousY}
+                y2={y}
+                stroke={stroke}
+                strokeWidth="1.5"
+              />
             )}
-            <line x1={x1} x2={x2} y1={y} y2={y} stroke={stroke} strokeWidth="1.5" />
-            {(normalized === "x" || normalized === "z" || normalized === "-") && (
+            <line
+              x1={x1}
+              x2={x2}
+              y1={y}
+              y2={y}
+              stroke={stroke}
+              strokeWidth="1.5"
+            />
+            {(normalized === "x" ||
+              normalized === "z" ||
+              normalized === "-") && (
               <text
                 x={x1 + stepWidth / 2}
                 y={midY + 4}
@@ -907,7 +1024,9 @@ function BusWave({ samples, stepWidth, rowHeight }) {
               fontSize="10"
               fontFamily="'JetBrains Mono', monospace"
             >
-              {normalized.length > 12 ? `${normalized.slice(0, 9)}...` : normalized}
+              {normalized.length > 12
+                ? `${normalized.slice(0, 9)}...`
+                : normalized}
             </text>
           </g>
         );
@@ -917,8 +1036,7 @@ function BusWave({ samples, stepWidth, rowHeight }) {
 }
 
 function LogViewer({ logs }) {
-  const raw =
-    logs?.sby_log || logs?.stdout || logs?.engine_log || "";
+  const raw = logs?.sby_log || logs?.stdout || logs?.engine_log || "";
   const lines = raw.split("\n").filter(Boolean);
 
   if (!lines.length) return null;
@@ -996,7 +1114,12 @@ export default function FVPanel() {
     }, POLL_INTERVAL_MS);
   }, []);
 
-  useEffect(() => () => { if (pollRef.current) clearInterval(pollRef.current); }, []);
+  useEffect(
+    () => () => {
+      if (pollRef.current) clearInterval(pollRef.current);
+    },
+    [],
+  );
 
   async function handleRun() {
     if (designFiles.length === 0 && svaFiles.length === 0) {
@@ -1016,7 +1139,11 @@ export default function FVPanel() {
       svaFiles.forEach((f) => form.append("sva_files", f));
     } else {
       // Append an empty SVA placeholder so the field is present
-      form.append("sva_files", new Blob([""], { type: "text/plain" }), "_empty.sva");
+      form.append(
+        "sva_files",
+        new Blob([""], { type: "text/plain" }),
+        "_empty.sva",
+      );
     }
     form.append("mode", mode);
     form.append("depth", String(depth));
@@ -1096,12 +1223,14 @@ export default function FVPanel() {
       try {
         const query = new URLSearchParams({ assertion: assertion.name || "" });
         const response = await fetch(
-          `${API_BASE}/api/formal/counterexample/${jobId}?${query.toString()}`
+          `${API_BASE}/api/formal/counterexample/${jobId}?${query.toString()}`,
         );
         const data = await response.json();
 
         if (!response.ok || data.error) {
-          throw new Error(data.error || `Failed to load waveform (${response.status})`);
+          throw new Error(
+            data.error || `Failed to load waveform (${response.status})`,
+          );
         }
 
         setWaveformState({
@@ -1121,7 +1250,7 @@ export default function FVPanel() {
         });
       }
     },
-    [jobId]
+    [jobId],
   );
 
   const result = jobData?.result;
@@ -1130,10 +1259,14 @@ export default function FVPanel() {
 
   // Overall badge color
   function overallBadgeStyle() {
-    if (overallStatus === "PASS") return { bg: "#23863620", color: "#3fb950", border: "#23863650" };
-    if (overallStatus === "FAIL") return { bg: "#f8514920", color: "#f85149", border: "#f8514940" };
-    if (overallStatus === "TIMEOUT") return { bg: "#d2922220", color: "#d29922", border: "#d2922240" };
-    if (overallStatus === "ERROR") return { bg: "#f8514920", color: "#f85149", border: "#f8514940" };
+    if (overallStatus === "PASS")
+      return { bg: "#23863620", color: "#3fb950", border: "#23863650" };
+    if (overallStatus === "FAIL")
+      return { bg: "#f8514920", color: "#f85149", border: "#f8514940" };
+    if (overallStatus === "TIMEOUT")
+      return { bg: "#d2922220", color: "#d29922", border: "#d2922240" };
+    if (overallStatus === "ERROR")
+      return { bg: "#f8514920", color: "#f85149", border: "#f8514940" };
     return null;
   }
   const badge = overallBadgeStyle();
@@ -1166,7 +1299,14 @@ export default function FVPanel() {
           }}
         >
           <span style={{ fontSize: 14 }}>⚙</span>
-          <span style={{ fontSize: 11, fontWeight: 700, color: "#e6edf3", letterSpacing: "0.02em" }}>
+          <span
+            style={{
+              fontSize: 11,
+              fontWeight: 700,
+              color: "#e6edf3",
+              letterSpacing: "0.02em",
+            }}
+          >
             Design Setup
           </span>
         </div>
@@ -1178,7 +1318,9 @@ export default function FVPanel() {
             accept={[".sv", ".v"]}
             files={designFiles}
             onAdd={(f) => setDesignFiles((prev) => [...prev, ...f])}
-            onRemove={(i) => setDesignFiles((prev) => prev.filter((_, idx) => idx !== i))}
+            onRemove={(i) =>
+              setDesignFiles((prev) => prev.filter((_, idx) => idx !== i))
+            }
           />
 
           <FileDropZone
@@ -1186,11 +1328,15 @@ export default function FVPanel() {
             accept={[".sv", ".sva"]}
             files={svaFiles}
             onAdd={(f) => setSvaFiles((prev) => [...prev, ...f])}
-            onRemove={(i) => setSvaFiles((prev) => prev.filter((_, idx) => idx !== i))}
+            onRemove={(i) =>
+              setSvaFiles((prev) => prev.filter((_, idx) => idx !== i))
+            }
           />
 
           {/* Divider */}
-          <div style={{ height: 1, background: "#21262d", margin: "18px 0 4px" }} />
+          <div
+            style={{ height: 1, background: "#21262d", margin: "18px 0 4px" }}
+          />
 
           <SectionLabel>Verification Mode</SectionLabel>
           <div style={{ display: "flex", gap: 4 }}>
@@ -1223,7 +1369,10 @@ export default function FVPanel() {
           <SelectInput
             value={solver}
             onChange={setSolver}
-            options={SOLVERS.map((s) => ({ id: s.id, label: `${s.label}  —  ${s.desc}` }))}
+            options={SOLVERS.map((s) => ({
+              id: s.id,
+              label: `${s.label}  —  ${s.desc}`,
+            }))}
           />
 
           <SectionLabel>BMC Depth</SectionLabel>
@@ -1252,16 +1401,26 @@ export default function FVPanel() {
           </div>
 
           {/* Divider */}
-          <div style={{ height: 1, background: "#21262d", margin: "18px 0 4px" }} />
+          <div
+            style={{ height: 1, background: "#21262d", margin: "18px 0 4px" }}
+          />
 
           <div style={{ display: "flex", gap: 10 }}>
             <div style={{ flex: 1 }}>
               <SectionLabel>Top Module</SectionLabel>
-              <TextInput value={topModule} onChange={setTopModule} placeholder="e.g. fifo" />
+              <TextInput
+                value={topModule}
+                onChange={setTopModule}
+                placeholder="e.g. fifo"
+              />
             </div>
             <div style={{ flex: 1 }}>
               <SectionLabel>Timeout (s)</SectionLabel>
-              <TextInput value={String(timeout)} onChange={(v) => setTimeout_(Number(v) || 300)} placeholder="300" />
+              <TextInput
+                value={String(timeout)}
+                onChange={(v) => setTimeout_(Number(v) || 300)}
+                placeholder="300"
+              />
             </div>
           </div>
         </div>
@@ -1283,7 +1442,9 @@ export default function FVPanel() {
             style={{
               flex: 1,
               padding: "9px 0",
-              background: running ? "#161b22" : "linear-gradient(135deg, #238636, #2ea043)",
+              background: running
+                ? "#161b22"
+                : "linear-gradient(135deg, #238636, #2ea043)",
               color: running ? "#484f58" : "#fff",
               border: running ? "1px solid #21262d" : "none",
               borderRadius: 7,
@@ -1296,11 +1457,27 @@ export default function FVPanel() {
             }}
           >
             {running ? (
-              <span style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
-                <span style={{ animation: "spin 1s linear infinite", display: "inline-block" }}>⟳</span>
+              <span
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 6,
+                }}
+              >
+                <span
+                  style={{
+                    animation: "spin 1s linear infinite",
+                    display: "inline-block",
+                  }}
+                >
+                  ⟳
+                </span>
                 Running…
               </span>
-            ) : "▶  Run Formal"}
+            ) : (
+              "▶  Run Formal"
+            )}
           </button>
           <button
             onClick={handleReset}
@@ -1322,8 +1499,14 @@ export default function FVPanel() {
       </div>
 
       {/* ── Main results area ── */}
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-
+      <div
+        style={{
+          flex: 1,
+          display: "flex",
+          flexDirection: "column",
+          overflow: "hidden",
+        }}
+      >
         {/* Status / error bar */}
         {(running || jobStatus || error) && (
           <div
@@ -1338,7 +1521,13 @@ export default function FVPanel() {
             }}
           >
             {running && (
-              <span style={{ fontSize: 11, color: "#58a6ff", fontFamily: "'JetBrains Mono', monospace" }}>
+              <span
+                style={{
+                  fontSize: 11,
+                  color: "#58a6ff",
+                  fontFamily: "'JetBrains Mono', monospace",
+                }}
+              >
                 ⏳ {jobPhaseLabel(jobStatus || "queued")}
               </span>
             )}
@@ -1359,13 +1548,26 @@ export default function FVPanel() {
               </span>
             )}
             {!running && jobStatus && !badge && (
-              <span style={{ fontSize: 11, color: "#7d8590", fontFamily: "'JetBrains Mono', monospace" }}>
+              <span
+                style={{
+                  fontSize: 11,
+                  color: "#7d8590",
+                  fontFamily: "'JetBrains Mono', monospace",
+                }}
+              >
                 Status: {jobStatus}
               </span>
             )}
             {jobData?.timing && (
-              <span style={{ fontSize: 10, color: "#484f58", fontFamily: "'JetBrains Mono', monospace" }}>
-                proving: {jobData.timing.proving_seconds}s &nbsp;|&nbsp; total: {jobData.timing.total_seconds}s
+              <span
+                style={{
+                  fontSize: 10,
+                  color: "#484f58",
+                  fontFamily: "'JetBrains Mono', monospace",
+                }}
+              >
+                proving: {jobData.timing.proving_seconds}s &nbsp;|&nbsp; total:{" "}
+                {jobData.timing.total_seconds}s
               </span>
             )}
             {error && (
@@ -1390,7 +1592,17 @@ export default function FVPanel() {
               flexShrink: 0,
             }}
           >
-            <span style={{ fontSize: 9, color: "#484f58", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em" }}>Filter</span>
+            <span
+              style={{
+                fontSize: 9,
+                color: "#484f58",
+                fontWeight: 700,
+                textTransform: "uppercase",
+                letterSpacing: "0.1em",
+              }}
+            >
+              Filter
+            </span>
             <div style={{ display: "flex", gap: 4 }}>
               {FILTER_OPTIONS.map((o) => (
                 <button
@@ -1417,7 +1629,14 @@ export default function FVPanel() {
 
         {/* Property Table */}
         {result?.assertions?.length > 0 ? (
-          <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
+          <div
+            style={{
+              flex: 1,
+              overflow: "hidden",
+              display: "flex",
+              flexDirection: "column",
+            }}
+          >
             <PropertyTable
               result={result}
               solver={jobData?.solver || solver}
@@ -1427,9 +1646,7 @@ export default function FVPanel() {
             />
           </div>
         ) : (
-          !running && !jobStatus && (
-            <EmptyState />
-          )
+          !running && !jobStatus && <EmptyState />
         )}
 
         {/* Engine error message (no assertions parsed) */}
@@ -1446,13 +1663,34 @@ export default function FVPanel() {
             }}
           >
             <div style={{ fontSize: 24 }}>
-              {overallStatus === "PASS" ? "✓" : overallStatus === "FAIL" ? "✗" : "⚠"}
+              {overallStatus === "PASS"
+                ? "✓"
+                : overallStatus === "FAIL"
+                  ? "✗"
+                  : "⚠"}
             </div>
-            <div style={{ fontSize: 13, color: overallStatus === "PASS" ? "#3fb950" : overallStatus === "FAIL" ? "#f85149" : "#d29922" }}>
+            <div
+              style={{
+                fontSize: 13,
+                color:
+                  overallStatus === "PASS"
+                    ? "#3fb950"
+                    : overallStatus === "FAIL"
+                      ? "#f85149"
+                      : "#d29922",
+              }}
+            >
               {overallStatus} — no per-property breakdown available
             </div>
             {result.error_message && (
-              <div style={{ fontSize: 11, color: "#f85149", maxWidth: 500, textAlign: "center" }}>
+              <div
+                style={{
+                  fontSize: 11,
+                  color: "#f85149",
+                  maxWidth: 500,
+                  textAlign: "center",
+                }}
+              >
                 {result.error_message}
               </div>
             )}
@@ -1515,7 +1753,8 @@ function EmptyState() {
         justifyContent: "center",
         gap: 0,
         padding: 48,
-        background: "radial-gradient(ellipse at 50% 60%, #6e40c908 0%, transparent 70%)",
+        background:
+          "radial-gradient(ellipse at 50% 60%, #6e40c908 0%, transparent 70%)",
       }}
     >
       {/* Icon */}
@@ -1536,13 +1775,31 @@ function EmptyState() {
         🔬
       </div>
 
-      <div style={{ fontSize: 16, fontWeight: 700, color: "#c9d1d9", marginBottom: 8, letterSpacing: -0.3 }}>
+      <div
+        style={{
+          fontSize: 16,
+          fontWeight: 700,
+          color: "#c9d1d9",
+          marginBottom: 8,
+          letterSpacing: -0.3,
+        }}
+      >
         Formal Verification
       </div>
-      <div style={{ fontSize: 12, textAlign: "center", maxWidth: 360, lineHeight: 1.8, color: "#484f58", marginBottom: 28 }}>
-        Upload design files and SVA assertions on the left, configure the engine, then click{" "}
-        <strong style={{ color: "#3fb950" }}>Run Formal</strong>.{" "}
-        Results appear as a JasperGold-style property table.
+      <div
+        style={{
+          fontSize: 12,
+          textAlign: "center",
+          maxWidth: 360,
+          lineHeight: 1.8,
+          color: "#484f58",
+          marginBottom: 28,
+        }}
+      >
+        Upload design files and SVA assertions on the left, configure the
+        engine, then click{" "}
+        <strong style={{ color: "#3fb950" }}>Run Formal</strong>. Results will
+        appear in property table.
       </div>
 
       {/* Feature list */}
@@ -1557,7 +1814,10 @@ function EmptyState() {
         }}
       >
         {features.map((f) => (
-          <span key={f.text} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <span
+            key={f.text}
+            style={{ display: "flex", alignItems: "center", gap: 6 }}
+          >
             <span style={{ color: "#238636", fontWeight: 700 }}>{f.icon}</span>
             {f.text}
           </span>
