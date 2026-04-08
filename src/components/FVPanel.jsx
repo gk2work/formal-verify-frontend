@@ -441,9 +441,7 @@ function PropertyTable({ result, solver, depth, filter, onOpenTrace }) {
             <th style={th}>Engine</th>
             <th style={th}>Bound</th>
             <th style={th}>Time</th>
-            <th style={th}>Task</th>
             <th style={th}>Traces</th>
-            <th style={th}>Source</th>
           </tr>
         </thead>
         <tbody>
@@ -505,7 +503,6 @@ function PropertyTable({ result, solver, depth, filter, onOpenTrace }) {
                     ? `${(result.elapsed_seconds / Math.max(filtered.length, 1)).toFixed(2)}s`
                     : "—"}
                 </td>
-                <td style={{ ...td, color: "#7d8590" }}>&lt;embedded&gt;</td>
                 <td style={{ ...td, color: "#8b949e" }}>
                   {hasTrace ? (
                     <button
@@ -528,7 +525,6 @@ function PropertyTable({ result, solver, depth, filter, onOpenTrace }) {
                     0
                   )}
                 </td>
-                <td style={{ ...td, color: "#7d8590" }}>VeriAssist</td>
               </tr>
             );
           })}
