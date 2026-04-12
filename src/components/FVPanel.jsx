@@ -146,7 +146,7 @@ function SectionLabel({ children }) {
   );
 }
 
-function FileDropZone({ label, accept, files, onAdd, onRemove }) {
+function FileDropZone({ label, accept, files, onAdd, onRemove, hint }) {
   const inputRef = useRef(null);
   const [dragging, setDragging] = useState(false);
 
@@ -276,6 +276,19 @@ function FileDropZone({ label, accept, files, onAdd, onRemove }) {
           </div>
         )}
       </div>
+      {hint && (
+        <div
+          style={{
+            marginTop: 5,
+            fontSize: 9,
+            color: "#484f58",
+            fontFamily: "'JetBrains Mono', monospace",
+            lineHeight: 1.5,
+          }}
+        >
+          {hint}
+        </div>
+      )}
     </div>
   );
 }
@@ -1317,6 +1330,7 @@ export default function FVPanel() {
             onRemove={(i) =>
               setDesignFiles((prev) => prev.filter((_, idx) => idx !== i))
             }
+            hint="RTL design files. Must use standard module/endmodule structure. Non-ANSI port style (port names in header, declarations in body) is supported."
           />
 
           <FileDropZone
@@ -1327,6 +1341,7 @@ export default function FVPanel() {
             onRemove={(i) =>
               setSvaFiles((prev) => prev.filter((_, idx) => idx !== i))
             }
+            hint="SVA monitor module with assert/cover properties. Signal names in property bodies are auto-matched to DUT ports by name (e.g. data_in → datain)."
           />
 
           {/* Divider */}
