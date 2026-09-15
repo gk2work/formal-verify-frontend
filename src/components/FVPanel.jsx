@@ -146,7 +146,7 @@ function SectionLabel({ children }) {
   );
 }
 
-function FileDropZone({ label, accept, files, onAdd, onRemove, hint }) {
+function FileDropZone({ label, accept, files, onAdd, onRemove, onEdit, activeFile, hint }) {
   const inputRef = useRef(null);
   const [dragging, setDragging] = useState(false);
 
@@ -217,51 +217,82 @@ function FileDropZone({ label, accept, files, onAdd, onRemove, hint }) {
           </div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-            {files.map((f, i) => (
-              <div
-                key={i}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  gap: 6,
-                  padding: "3px 6px",
-                  background: "#161b22",
-                  borderRadius: 4,
-                }}
-              >
-                <span
+            {files.map((f, i) => {
+              const isActive = activeFile === f.name;
+              return (
+                <div
+                  key={i}
                   style={{
-                    fontSize: 10,
-                    color: "#58a6ff",
-                    fontFamily: "'JetBrains Mono', monospace",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: 4,
+                    padding: "3px 5px",
+                    background: isActive ? "#1f6feb18" : "#161b22",
+                    borderRadius: 4,
+                    border: `1px solid ${isActive ? "#1f6feb55" : "transparent"}`,
+                    transition: "all 0.12s",
                   }}
                 >
-                  📄 {f.name}
-                </span>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onRemove(i);
-                  }}
-                  style={{
-                    background: "none",
-                    border: "none",
-                    color: "#484f58",
-                    cursor: "pointer",
-                    fontSize: 14,
-                    padding: "0 2px",
-                    lineHeight: 1,
-                    flexShrink: 0,
-                  }}
-                >
-                  ×
-                </button>
-              </div>
-            ))}
+                  <span
+                    style={{
+                      fontSize: 10,
+                      color: isActive ? "#79c0ff" : "#58a6ff",
+                      fontFamily: "'JetBrains Mono', monospace",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                      flex: 1,
+                    }}
+                  >
+                    📄 {f.name}
+                  </span>
+                  {/* Edit button */}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onEdit?.(f.name);
+                    }}
+                    title="Edit file content"
+                    style={{
+                      background: isActive ? "#1f6feb33" : "none",
+                      border: `1px solid ${isActive ? "#1f6feb66" : "#30363d"}`,
+                      borderRadius: 3,
+                      color: isActive ? "#58a6ff" : "#484f58",
+                      cursor: "pointer",
+                      fontSize: 10,
+                      padding: "1px 5px",
+                      lineHeight: 1.4,
+                      flexShrink: 0,
+                      fontFamily: "'JetBrains Mono', monospace",
+                      transition: "all 0.12s",
+                    }}
+                  >
+                    ✏
+                  </button>
+                  {/* Remove button */}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onRemove(i);
+                    }}
+                    title="Remove file"
+                    style={{
+                      background: "none",
+                      border: "none",
+                      color: "#484f58",
+                      cursor: "pointer",
+                      fontSize: 14,
+                      padding: "0 2px",
+                      lineHeight: 1,
+                      flexShrink: 0,
+                    }}
+                  >
+                    ×
+                  </button>
+                </div>
+              );
+            })}
             <div
               style={{
                 marginTop: 2,
@@ -289,6 +320,502 @@ function FileDropZone({ label, accept, files, onAdd, onRemove, hint }) {
           {hint}
         </div>
       )}
+    </div>
+  );
+}
+
+// ── FileEditor ─────────────────────────────────────────────────
+
+function FileEditor({ filename, content, onChange, onClose, onPreview, previewLoading, previewData, apiBase }) {
+  const textareaRef = useRef(null);
+  const lineNumRef = useRef(null);
+  const isSva = filename?.endsWith(".sva") || (filename?.endsWith(".sv") && content?.includes("assert property"));
+  const ext = filename?.split(".").pop()?.toUpperCase() || "SV";
+
+  const lines = (content || "").split("\n");
+  const lineCount = Math.max(lines.length, 1);
+
+  function syncScroll(e) {
+    if (lineNumRef.current) {
+      lineNumRef.current.scrollTop = e.target.scrollTop;
+    }
+  }
+
+  // Highlight error lines from preview
+  const errorLines = new Set();
+  if (previewData?.errors) {
+    previewData.errors.forEach((err) => {
+      if (err.line) errorLines.add(err.line);
+    });
+  }
+  if (previewData?.numbered_lines) {
+    previewData.numbered_lines.forEach((item) => {
+      if (item.has_error) errorLines.add(item.line);
+    });
+  }
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", height: "100%", background: "#010409" }}>
+      {/* Editor top bar */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          padding: "8px 14px",
+          borderBottom: "1px solid #21262d",
+          background: "#0d1117",
+          flexShrink: 0,
+        }}
+      >
+        <span style={{ fontSize: 13, lineHeight: 1 }}>📝</span>
+        <span
+          style={{
+            fontSize: 12,
+            fontWeight: 700,
+            color: "#e6edf3",
+            fontFamily: "'JetBrains Mono', monospace",
+            flex: 1,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {filename || "untitled"}
+        </span>
+        <span
+          style={{
+            fontSize: 9,
+            fontWeight: 700,
+            padding: "2px 7px",
+            borderRadius: 3,
+            background: "#1f6feb22",
+            color: "#58a6ff",
+            border: "1px solid #1f6feb44",
+            fontFamily: "'JetBrains Mono', monospace",
+            letterSpacing: "0.08em",
+            flexShrink: 0,
+          }}
+        >
+          .{ext.toLowerCase()}
+        </span>
+        <span
+          style={{
+            fontSize: 9,
+            color: "#484f58",
+            fontFamily: "'JetBrains Mono', monospace",
+            flexShrink: 0,
+          }}
+        >
+          {lineCount} lines
+        </span>
+        {/* Preview button */}
+        <button
+          onClick={onPreview}
+          disabled={previewLoading}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 5,
+            padding: "5px 12px",
+            background: previewLoading ? "#161b22" : "linear-gradient(135deg, #1f6feb, #388bfd)",
+            border: "none",
+            borderRadius: 5,
+            color: previewLoading ? "#484f58" : "#fff",
+            fontSize: 11,
+            fontWeight: 700,
+            cursor: previewLoading ? "not-allowed" : "pointer",
+            fontFamily: "'JetBrains Mono', monospace",
+            flexShrink: 0,
+            boxShadow: previewLoading ? "none" : "0 2px 8px #1f6feb40",
+            transition: "all 0.15s",
+          }}
+        >
+          {previewLoading ? (
+            <span style={{ animation: "spin 1s linear infinite", display: "inline-block" }}>⟳</span>
+          ) : "🔍"}
+          {previewLoading ? " Parsing..." : " Preview"}
+        </button>
+        {/* Close editor button */}
+        <button
+          onClick={onClose}
+          title="Close editor"
+          style={{
+            background: "#161b22",
+            border: "1px solid #30363d",
+            borderRadius: 5,
+            color: "#8b949e",
+            fontSize: 12,
+            padding: "4px 10px",
+            cursor: "pointer",
+            flexShrink: 0,
+          }}
+        >
+          ✕
+        </button>
+      </div>
+
+      {/* Editor body: line numbers + textarea */}
+      <div style={{ flex: 1, display: "flex", overflow: "hidden", minHeight: 0 }}>
+        {/* Line number gutter */}
+        <div
+          ref={lineNumRef}
+          style={{
+            width: 44,
+            minWidth: 44,
+            background: "#0d1117",
+            borderRight: "1px solid #21262d",
+            overflowY: "hidden",
+            userSelect: "none",
+            paddingTop: 12,
+            boxSizing: "border-box",
+          }}
+        >
+          {Array.from({ length: lineCount }, (_, i) => i + 1).map((n) => (
+            <div
+              key={n}
+              style={{
+                height: "1.6em",
+                lineHeight: "1.6em",
+                paddingRight: 8,
+                textAlign: "right",
+                fontSize: 11,
+                fontFamily: "'JetBrains Mono', monospace",
+                color: errorLines.has(n) ? "#f85149" : "#484f58",
+                background: errorLines.has(n) ? "#f8514914" : "transparent",
+              }}
+            >
+              {n}
+            </div>
+          ))}
+        </div>
+
+        {/* The textarea */}
+        <textarea
+          ref={textareaRef}
+          value={content || ""}
+          onChange={(e) => onChange(e.target.value)}
+          onScroll={syncScroll}
+          spellCheck={false}
+          autoCapitalize="none"
+          autoCorrect="off"
+          style={{
+            flex: 1,
+            background: "#010409",
+            color: "#e6edf3",
+            border: "none",
+            outline: "none",
+            resize: "none",
+            padding: "12px 14px",
+            fontSize: 12,
+            lineHeight: "1.6em",
+            fontFamily: "'JetBrains Mono', monospace",
+            overflowY: "auto",
+            overflowX: "auto",
+            whiteSpace: "pre",
+            tabSize: 2,
+            caretColor: "#58a6ff",
+          }}
+        />
+      </div>
+
+      {/* Preview panel (shown after Preview is clicked) */}
+      {previewData && (
+        <PreviewPanel data={previewData} filename={filename} />
+      )}
+    </div>
+  );
+}
+
+// ── PreviewPanel ───────────────────────────────────────────────
+
+function PreviewPanel({ data, filename }) {
+  const isSva = data?.properties !== undefined || data?.assertions !== undefined;
+  const isOk = isSva ? !data?.error : data?.valid;
+
+  return (
+    <div
+      style={{
+        borderTop: "1px solid #21262d",
+        background: "#0d1117",
+        flexShrink: 0,
+        maxHeight: 240,
+        overflowY: "auto",
+      }}
+    >
+      {/* Preview header */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          padding: "7px 14px",
+          borderBottom: "1px solid #21262d",
+          background: "#080c12",
+          position: "sticky",
+          top: 0,
+          zIndex: 1,
+        }}
+      >
+        <span style={{ fontSize: 11 }}>🔍</span>
+        <span
+          style={{
+            fontSize: 10,
+            fontWeight: 700,
+            color: "#7d8590",
+            textTransform: "uppercase",
+            letterSpacing: "0.1em",
+            fontFamily: "'JetBrains Mono', monospace",
+          }}
+        >
+          Preview · {filename}
+        </span>
+        <span
+          style={{
+            marginLeft: "auto",
+            fontSize: 10,
+            fontWeight: 700,
+            padding: "2px 8px",
+            borderRadius: 4,
+            background: isOk ? "#23863620" : "#f8514918",
+            color: isOk ? "#3fb950" : "#f85149",
+            border: `1px solid ${isOk ? "#23863640" : "#f8514930"}`,
+            fontFamily: "'JetBrains Mono', monospace",
+          }}
+        >
+          {isOk ? "✓ OK" : "✗ Issues"}
+        </span>
+      </div>
+
+      <div style={{ padding: "10px 14px", display: "flex", flexDirection: "column", gap: 8 }}>
+        {/* SVA-specific preview */}
+        {isSva ? (
+          <>
+            {data.error && (
+              <div
+                style={{
+                  fontSize: 11,
+                  color: "#f85149",
+                  fontFamily: "'JetBrains Mono', monospace",
+                  background: "#f8514910",
+                  border: "1px solid #f8514930",
+                  borderRadius: 6,
+                  padding: "8px 12px",
+                }}
+              >
+                ✗ {data.error}
+              </div>
+            )}
+            {data.parsed_summary && (
+              <div
+                style={{
+                  fontSize: 11,
+                  color: "#8b949e",
+                  fontFamily: "'JetBrains Mono', monospace",
+                  whiteSpace: "pre-wrap",
+                  lineHeight: 1.6,
+                }}
+              >
+                {data.parsed_summary}
+              </div>
+            )}
+            {data.properties?.length > 0 && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                <div
+                  style={{
+                    fontSize: 9,
+                    fontWeight: 700,
+                    color: "#484f58",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.1em",
+                    fontFamily: "'JetBrains Mono', monospace",
+                  }}
+                >
+                  Properties ({data.properties.length})
+                </div>
+                {data.properties.map((p, i) => (
+                  <div
+                    key={i}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                      padding: "4px 8px",
+                      background: "#161b22",
+                      borderRadius: 4,
+                      fontSize: 11,
+                      fontFamily: "'JetBrains Mono', monospace",
+                    }}
+                  >
+                    <span style={{ color: "#3fb950", fontWeight: 700 }}>✓</span>
+                    <span style={{ color: "#e6edf3", flex: 1 }}>{p.name || p}</span>
+                    {p.type && (
+                      <span
+                        style={{
+                          fontSize: 9,
+                          padding: "1px 6px",
+                          borderRadius: 3,
+                          background:
+                            p.type === "ASSERT" ? "#1f6feb22" : "#23863618",
+                          color:
+                            p.type === "ASSERT" ? "#58a6ff" : "#3fb950",
+                          border: `1px solid ${
+                            p.type === "ASSERT" ? "#1f6feb44" : "#23863640"
+                          }`,
+                          fontWeight: 700,
+                          letterSpacing: "0.05em",
+                        }}
+                      >
+                        {p.type}
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+            {data.assertions?.length > 0 && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                <div
+                  style={{
+                    fontSize: 9,
+                    fontWeight: 700,
+                    color: "#484f58",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.1em",
+                    fontFamily: "'JetBrains Mono', monospace",
+                  }}
+                >
+                  Assertions ({data.assertions.length})
+                </div>
+                {data.assertions.map((a, i) => (
+                  <div
+                    key={i}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                      padding: "4px 8px",
+                      background: "#161b22",
+                      borderRadius: 4,
+                      fontSize: 11,
+                      fontFamily: "'JetBrains Mono', monospace",
+                    }}
+                  >
+                    <span style={{ color: "#d29922", fontWeight: 700 }}>◆</span>
+                    <span style={{ color: "#e6edf3", flex: 1 }}>{a.name || a}</span>
+                    {a.type && (
+                      <span
+                        style={{
+                          fontSize: 9,
+                          padding: "1px 6px",
+                          borderRadius: 3,
+                          background:
+                            a.type === "ASSERT" ? "#1f6feb22" : "#23863618",
+                          color:
+                            a.type === "ASSERT" ? "#58a6ff" : "#3fb950",
+                          border: `1px solid ${
+                            a.type === "ASSERT" ? "#1f6feb44" : "#23863640"
+                          }`,
+                          fontWeight: 700,
+                          letterSpacing: "0.05em",
+                        }}
+                      >
+                        {a.type}
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        ) : (
+          /* Design file preview */
+          <>
+            {data.valid !== undefined && (
+              <div
+                style={{
+                  fontSize: 11,
+                  color: data.valid ? "#3fb950" : "#f85149",
+                  fontFamily: "'JetBrains Mono', monospace",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                }}
+              >
+                <span style={{ fontWeight: 700 }}>
+                  {data.valid ? "✓ Syntax OK" : "✗ Syntax errors detected"}
+                </span>
+                {data.module_name && (
+                  <span style={{ color: "#8b949e" }}>· module {data.module_name}</span>
+                )}
+              </div>
+            )}
+            {data.errors?.length > 0 && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                {data.errors.map((err, i) => (
+                  <div
+                    key={i}
+                    style={{
+                      fontSize: 11,
+                      color: "#f85149",
+                      fontFamily: "'JetBrains Mono', monospace",
+                      display: "flex",
+                      gap: 8,
+                      padding: "4px 8px",
+                      background: "#f8514910",
+                      border: "1px solid #f8514928",
+                      borderRadius: 4,
+                    }}
+                  >
+                    {err.line && (
+                      <span
+                        style={{
+                          color: "#d29922",
+                          flexShrink: 0,
+                          minWidth: 32,
+                        }}
+                      >
+                        L{err.line}
+                      </span>
+                    )}
+                    <span>{err.message || err}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            {data.numbered_lines?.filter((l) => l.has_error).map((item, i) => (
+              <div
+                key={i}
+                style={{
+                  fontSize: 11,
+                  color: "#f85149",
+                  fontFamily: "'JetBrains Mono', monospace",
+                  display: "flex",
+                  gap: 8,
+                  padding: "4px 8px",
+                  background: "#f8514910",
+                  border: "1px solid #f8514928",
+                  borderRadius: 4,
+                }}
+              >
+                <span style={{ color: "#d29922", flexShrink: 0, minWidth: 32 }}>L{item.line}</span>
+                <span>{item.content}</span>
+              </div>
+            ))}
+            {data.valid && !data.errors?.length && (
+              <div
+                style={{
+                  fontSize: 11,
+                  color: "#484f58",
+                  fontFamily: "'JetBrains Mono', monospace",
+                }}
+              >
+                No issues found. File is ready for formal verification.
+              </div>
+            )}
+          </>
+        )}
+      </div>
     </div>
   );
 }
@@ -1082,6 +1609,15 @@ export default function FVPanel() {
   const [topModule, setTopModule] = useState("");
   const [timeout, setTimeout_] = useState(300);
 
+  // Editor state
+  // fileContents: { [filename]: string } — editable text per file
+  const [fileContents, setFileContents] = useState({});
+  // activeEditorFile: filename string or null
+  const [activeEditorFile, setActiveEditorFile] = useState(null);
+  // Preview state
+  const [previewData, setPreviewData] = useState(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+
   const [jobId, setJobId] = useState(null);
   const [jobData, setJobData] = useState(null);
   const [running, setRunning] = useState(false);
@@ -1130,6 +1666,85 @@ export default function FVPanel() {
     [],
   );
 
+  // ── Read file text on upload ────────────────────────────────
+  async function readFilesIntoContents(newFiles) {
+    const updates = {};
+    await Promise.all(
+      newFiles.map(
+        (f) =>
+          new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+              updates[f.name] = e.target.result;
+              resolve();
+            };
+            reader.readAsText(f);
+          }),
+      ),
+    );
+    setFileContents((prev) => ({ ...prev, ...updates }));
+  }
+
+  // ── Wrapper: add design files ───────────────────────────────
+  async function addDesignFiles(newFiles) {
+    await readFilesIntoContents(newFiles);
+    setDesignFiles((prev) => [...prev, ...newFiles]);
+  }
+
+  // ── Wrapper: add SVA files ──────────────────────────────────
+  async function addSvaFiles(newFiles) {
+    await readFilesIntoContents(newFiles);
+    setSvaFiles((prev) => [...prev, ...newFiles]);
+  }
+
+  // ── Open a file in the editor ───────────────────────────────
+  function openEditor(filename) {
+    setActiveEditorFile(filename);
+    setPreviewData(null);
+  }
+
+  // ── Close the editor ────────────────────────────────────────
+  function closeEditor() {
+    setActiveEditorFile(null);
+    setPreviewData(null);
+  }
+
+  // ── Handle Preview button click ─────────────────────────────
+  async function handlePreview() {
+    if (!activeEditorFile) return;
+    const content = fileContents[activeEditorFile] || "";
+    const isSvaFile =
+      activeEditorFile.endsWith(".sva") ||
+      svaFiles.some((f) => f.name === activeEditorFile);
+
+    setPreviewLoading(true);
+    setPreviewData(null);
+    try {
+      if (isSvaFile) {
+        // Use /lower endpoint for SVA files — returns properties, assertions, parsed_summary
+        const res = await fetch(`${API_BASE}/api/formal/lower`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sva_code: content }),
+        });
+        const data = await res.json();
+        setPreviewData(data);
+      } else {
+        // Use /validate-rtl endpoint for design files
+        const res = await fetch(`${API_BASE}/api/formal/validate-rtl`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ code: content }),
+        });
+        const data = await res.json();
+        setPreviewData(data);
+      }
+    } catch (e) {
+      setPreviewData({ error: e.message, valid: false });
+    }
+    setPreviewLoading(false);
+  }
+
   async function handleRun() {
     if (designFiles.length === 0 && svaFiles.length === 0) {
       setError("Upload at least one design file or SVA file.");
@@ -1141,11 +1756,32 @@ export default function FVPanel() {
     setJobData(null);
     setLogExpanded(false);
 
+    // Build FormData using edited file contents (fileContents map)
+    // so any in-browser edits are included in the submission.
     const form = new FormData();
-    designFiles.forEach((f) => form.append("design_files", f));
+
+    if (designFiles.length > 0) {
+      designFiles.forEach((f) => {
+        const editedText = fileContents[f.name];
+        if (editedText !== undefined) {
+          // Use edited content
+          form.append("design_files", new Blob([editedText], { type: "text/plain" }), f.name);
+        } else {
+          form.append("design_files", f);
+        }
+      });
+    }
+
     // FastAPI requires at least one file; send a blank placeholder if no SVA files
     if (svaFiles.length > 0) {
-      svaFiles.forEach((f) => form.append("sva_files", f));
+      svaFiles.forEach((f) => {
+        const editedText = fileContents[f.name];
+        if (editedText !== undefined) {
+          form.append("sva_files", new Blob([editedText], { type: "text/plain" }), f.name);
+        } else {
+          form.append("sva_files", f);
+        }
+      });
     } else {
       // Append an empty SVA placeholder so the field is present
       form.append(
@@ -1194,6 +1830,10 @@ export default function FVPanel() {
     if (pollRef.current) clearInterval(pollRef.current);
     setDesignFiles([]);
     setSvaFiles([]);
+    setFileContents({});
+    setActiveEditorFile(null);
+    setPreviewData(null);
+    setPreviewLoading(false);
     setJobId(null);
     setJobData(null);
     setRunning(false);
@@ -1326,10 +1966,14 @@ export default function FVPanel() {
             label="Design Files (.sv / .v)"
             accept={[".sv", ".v"]}
             files={designFiles}
-            onAdd={(f) => setDesignFiles((prev) => [...prev, ...f])}
-            onRemove={(i) =>
-              setDesignFiles((prev) => prev.filter((_, idx) => idx !== i))
-            }
+            onAdd={addDesignFiles}
+            onRemove={(i) => {
+              const removed = designFiles[i];
+              setDesignFiles((prev) => prev.filter((_, idx) => idx !== i));
+              if (activeEditorFile === removed?.name) setActiveEditorFile(null);
+            }}
+            onEdit={openEditor}
+            activeFile={activeEditorFile}
             hint="RTL design files. Must use standard module/endmodule structure. Non-ANSI port style (port names in header, declarations in body) is supported."
           />
 
@@ -1337,10 +1981,14 @@ export default function FVPanel() {
             label="SVA Files (.sv / .sva)"
             accept={[".sv", ".sva"]}
             files={svaFiles}
-            onAdd={(f) => setSvaFiles((prev) => [...prev, ...f])}
-            onRemove={(i) =>
-              setSvaFiles((prev) => prev.filter((_, idx) => idx !== i))
-            }
+            onAdd={addSvaFiles}
+            onRemove={(i) => {
+              const removed = svaFiles[i];
+              setSvaFiles((prev) => prev.filter((_, idx) => idx !== i));
+              if (activeEditorFile === removed?.name) setActiveEditorFile(null);
+            }}
+            onEdit={openEditor}
+            activeFile={activeEditorFile}
             hint="SVA monitor module with assert/cover properties. Signal names in property bodies are auto-matched to DUT ports by name (e.g. data_in → datain)."
           />
 
@@ -1518,223 +2166,244 @@ export default function FVPanel() {
           overflow: "hidden",
         }}
       >
-        {/* Status / error bar */}
-        {(running || jobStatus || error) && (
-          <div
-            style={{
-              padding: "7px 16px",
-              borderBottom: "1px solid #21262d",
-              background: "#0d1117",
-              display: "flex",
-              alignItems: "center",
-              gap: 12,
-              flexShrink: 0,
-            }}
-          >
-            {running && (
-              <span
-                style={{
-                  fontSize: 11,
-                  color: "#58a6ff",
-                  fontFamily: "'JetBrains Mono', monospace",
-                }}
-              >
-                ⏳ {jobPhaseLabel(jobStatus || "queued")}
-              </span>
-            )}
-            {!running && jobStatus && badge && (
-              <span
-                style={{
-                  fontSize: 12,
-                  fontWeight: 700,
-                  fontFamily: "'JetBrains Mono', monospace",
-                  padding: "2px 10px",
-                  borderRadius: 4,
-                  background: badge.bg,
-                  color: badge.color,
-                  border: `1px solid ${badge.border}`,
-                }}
-              >
-                {statusIcon(overallStatus)} {overallStatus}
-              </span>
-            )}
-            {!running && jobStatus && !badge && (
-              <span
-                style={{
-                  fontSize: 11,
-                  color: "#7d8590",
-                  fontFamily: "'JetBrains Mono', monospace",
-                }}
-              >
-                Status: {jobStatus}
-              </span>
-            )}
-            {jobData?.timing && (
-              <span
-                style={{
-                  fontSize: 10,
-                  color: "#484f58",
-                  fontFamily: "'JetBrains Mono', monospace",
-                }}
-              >
-                proving: {jobData.timing.proving_seconds}s &nbsp;|&nbsp; total:{" "}
-                {jobData.timing.total_seconds}s
-              </span>
-            )}
-            {error && (
-              <span style={{ fontSize: 11, color: "#f85149" }}>✗ {error}</span>
-            )}
-          </div>
+        {/* ── File Editor overlay (shown when a file is open for editing) ── */}
+        {activeEditorFile && (
+          <FileEditor
+            filename={activeEditorFile}
+            content={fileContents[activeEditorFile] ?? ""}
+            onChange={(text) =>
+              setFileContents((prev) => ({ ...prev, [activeEditorFile]: text }))
+            }
+            onClose={closeEditor}
+            onPreview={handlePreview}
+            previewLoading={previewLoading}
+            previewData={previewData}
+            apiBase={API_BASE}
+          />
         )}
 
-        {/* Summary stats row */}
-        {result && <SummaryBar result={result} depth={depth} />}
-
-        {/* Filter bar (only when we have assertions) */}
-        {result?.assertions?.length > 0 && (
-          <div
-            style={{
-              padding: "6px 14px",
-              borderBottom: "1px solid #21262d",
-              background: "#0d1117",
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              flexShrink: 0,
-            }}
-          >
-            <span
-              style={{
-                fontSize: 9,
-                color: "#484f58",
-                fontWeight: 700,
-                textTransform: "uppercase",
-                letterSpacing: "0.1em",
-              }}
-            >
-              Filter
-            </span>
-            <div style={{ display: "flex", gap: 4 }}>
-              {FILTER_OPTIONS.map((o) => (
-                <button
-                  key={o.id}
-                  onClick={() => setFilter(o.id)}
-                  style={{
-                    padding: "3px 10px",
-                    background: filter === o.id ? "#1f6feb22" : "transparent",
-                    border: `1px solid ${filter === o.id ? "#1f6feb66" : "#21262d"}`,
-                    borderRadius: 4,
-                    color: filter === o.id ? "#58a6ff" : "#484f58",
-                    fontSize: 10,
-                    fontFamily: "'JetBrains Mono', monospace",
-                    cursor: "pointer",
-                    transition: "all 0.1s",
-                  }}
-                >
-                  {o.label}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Property Table */}
-        {result?.assertions?.length > 0 ? (
-          <div
-            style={{
-              flex: 1,
-              overflow: "hidden",
-              display: "flex",
-              flexDirection: "column",
-            }}
-          >
-            <PropertyTable
-              result={result}
-              solver={jobData?.solver || solver}
-              depth={result?.depth_reached || depth}
-              filter={filter}
-              onOpenTrace={openWaveform}
-            />
-          </div>
-        ) : (
-          !running && !jobStatus && <EmptyState />
-        )}
-
-        {/* Engine error message (no assertions parsed) */}
-        {result && !result.assertions?.length && (
-          <div
-            style={{
-              flex: 1,
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
-              color: "#484f58",
-              gap: 8,
-            }}
-          >
-            <div style={{ fontSize: 24 }}>
-              {overallStatus === "PASS"
-                ? "✓"
-                : overallStatus === "FAIL"
-                  ? "✗"
-                  : "⚠"}
-            </div>
-            <div
-              style={{
-                fontSize: 13,
-                color:
-                  overallStatus === "PASS"
-                    ? "#3fb950"
-                    : overallStatus === "FAIL"
-                      ? "#f85149"
-                      : "#d29922",
-              }}
-            >
-              {overallStatus} — no per-property breakdown available
-            </div>
-            {result.error_message && (
+        {/* Everything below is shown only when the editor is NOT open */}
+        {!activeEditorFile && (
+          <>
+            {/* Status / error bar */}
+            {(running || jobStatus || error) && (
               <div
                 style={{
-                  fontSize: 11,
-                  color: "#f85149",
-                  maxWidth: 500,
-                  textAlign: "center",
+                  padding: "7px 16px",
+                  borderBottom: "1px solid #21262d",
+                  background: "#0d1117",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 12,
+                  flexShrink: 0,
                 }}
               >
-                {result.error_message}
+                {running && (
+                  <span
+                    style={{
+                      fontSize: 11,
+                      color: "#58a6ff",
+                      fontFamily: "'JetBrains Mono', monospace",
+                    }}
+                  >
+                    ⏳ {jobPhaseLabel(jobStatus || "queued")}
+                  </span>
+                )}
+                {!running && jobStatus && badge && (
+                  <span
+                    style={{
+                      fontSize: 12,
+                      fontWeight: 700,
+                      fontFamily: "'JetBrains Mono', monospace",
+                      padding: "2px 10px",
+                      borderRadius: 4,
+                      background: badge.bg,
+                      color: badge.color,
+                      border: `1px solid ${badge.border}`,
+                    }}
+                  >
+                    {statusIcon(overallStatus)} {overallStatus}
+                  </span>
+                )}
+                {!running && jobStatus && !badge && (
+                  <span
+                    style={{
+                      fontSize: 11,
+                      color: "#7d8590",
+                      fontFamily: "'JetBrains Mono', monospace",
+                    }}
+                  >
+                    Status: {jobStatus}
+                  </span>
+                )}
+                {jobData?.timing && (
+                  <span
+                    style={{
+                      fontSize: 10,
+                      color: "#484f58",
+                      fontFamily: "'JetBrains Mono', monospace",
+                    }}
+                  >
+                    proving: {jobData.timing.proving_seconds}s &nbsp;|&nbsp; total:{" "}
+                    {jobData.timing.total_seconds}s
+                  </span>
+                )}
+                {error && (
+                  <span style={{ fontSize: 11, color: "#f85149" }}>✗ {error}</span>
+                )}
               </div>
             )}
-          </div>
-        )}
 
-        {/* Log viewer (collapsible) */}
-        {result?.logs && (
-          <div style={{ borderTop: "1px solid #21262d", flexShrink: 0 }}>
-            <button
-              onClick={() => setLogExpanded((v) => !v)}
-              style={{
-                width: "100%",
-                background: "#080c12",
-                border: "none",
-                padding: "7px 16px",
-                textAlign: "left",
-                color: "#484f58",
-                fontSize: 9,
-                fontWeight: 700,
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                gap: 6,
-                letterSpacing: "0.1em",
-                textTransform: "uppercase",
-              }}
-            >
-              <span style={{ fontSize: 10 }}>{logExpanded ? "▾" : "▸"}</span>
-              Engine Log
-            </button>
-            {logExpanded && <LogViewer logs={result.logs} />}
-          </div>
+            {/* Summary stats row */}
+            {result && <SummaryBar result={result} depth={depth} />}
+
+            {/* Filter bar (only when we have assertions) */}
+            {result?.assertions?.length > 0 && (
+              <div
+                style={{
+                  padding: "6px 14px",
+                  borderBottom: "1px solid #21262d",
+                  background: "#0d1117",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  flexShrink: 0,
+                }}
+              >
+                <span
+                  style={{
+                    fontSize: 9,
+                    color: "#484f58",
+                    fontWeight: 700,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.1em",
+                  }}
+                >
+                  Filter
+                </span>
+                <div style={{ display: "flex", gap: 4 }}>
+                  {FILTER_OPTIONS.map((o) => (
+                    <button
+                      key={o.id}
+                      onClick={() => setFilter(o.id)}
+                      style={{
+                        padding: "3px 10px",
+                        background: filter === o.id ? "#1f6feb22" : "transparent",
+                        border: `1px solid ${filter === o.id ? "#1f6feb66" : "#21262d"}`,
+                        borderRadius: 4,
+                        color: filter === o.id ? "#58a6ff" : "#484f58",
+                        fontSize: 10,
+                        fontFamily: "'JetBrains Mono', monospace",
+                        cursor: "pointer",
+                        transition: "all 0.1s",
+                      }}
+                    >
+                      {o.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Property Table */}
+            {result?.assertions?.length > 0 ? (
+              <div
+                style={{
+                  flex: 1,
+                  overflow: "hidden",
+                  display: "flex",
+                  flexDirection: "column",
+                }}
+              >
+                <PropertyTable
+                  result={result}
+                  solver={jobData?.solver || solver}
+                  depth={result?.depth_reached || depth}
+                  filter={filter}
+                  onOpenTrace={openWaveform}
+                />
+              </div>
+            ) : (
+              !running && !jobStatus && <EmptyState />
+            )}
+
+            {/* Engine error message (no assertions parsed) */}
+            {result && !result.assertions?.length && (
+              <div
+                style={{
+                  flex: 1,
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  color: "#484f58",
+                  gap: 8,
+                }}
+              >
+                <div style={{ fontSize: 24 }}>
+                  {overallStatus === "PASS"
+                    ? "✓"
+                    : overallStatus === "FAIL"
+                      ? "✗"
+                      : "⚠"}
+                </div>
+                <div
+                  style={{
+                    fontSize: 13,
+                    color:
+                      overallStatus === "PASS"
+                        ? "#3fb950"
+                        : overallStatus === "FAIL"
+                          ? "#f85149"
+                          : "#d29922",
+                  }}
+                >
+                  {overallStatus} — no per-property breakdown available
+                </div>
+                {result.error_message && (
+                  <div
+                    style={{
+                      fontSize: 11,
+                      color: "#f85149",
+                      maxWidth: 500,
+                      textAlign: "center",
+                    }}
+                  >
+                    {result.error_message}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Log viewer (collapsible) */}
+            {result?.logs && (
+              <div style={{ borderTop: "1px solid #21262d", flexShrink: 0 }}>
+                <button
+                  onClick={() => setLogExpanded((v) => !v)}
+                  style={{
+                    width: "100%",
+                    background: "#080c12",
+                    border: "none",
+                    padding: "7px 16px",
+                    textAlign: "left",
+                    color: "#484f58",
+                    fontSize: 9,
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                    letterSpacing: "0.1em",
+                    textTransform: "uppercase",
+                  }}
+                >
+                  <span style={{ fontSize: 10 }}>{logExpanded ? "▾" : "▸"}</span>
+                  Engine Log
+                </button>
+                {logExpanded && <LogViewer logs={result.logs} />}
+              </div>
+            )}
+          </>
         )}
       </div>
 
